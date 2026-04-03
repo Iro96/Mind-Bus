@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-agent-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-agent-platform
+  template:
+    metadata:
+      labels:
+        app: ai-agent-platform
+    spec:
+      containers:
+        - name: api
+          image: ai-agent-platform:latest
+          command: ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgres://postgres:postgres@postgres:5432/ai_agent"
+            - name: QDRANT_URL
+              value: "http://qdrant:6333"
+        - name: worker
+          image: ai-agent-platform:latest
+          command: ["python", "-m", "worker.main"]
+          env:
+            - name: DATABASE_URL
+              value: "postgres://postgres:postgres@postgres:5432/ai_agent"
+            - name: QDRANT_URL
+              value: "http://qdrant:6333"

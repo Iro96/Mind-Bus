@@ -1,4 +1,11 @@
 ![demo\_chat](https://dummyimage.com/1000x400/0f172a/ffffff\&text=Mind-Bus+AI+Agent+Demo)
+
+<div align="center">
+  
+[![Docker Image CI](https://github.com/Iro96/Mind-Bus/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Iro96/Mind-Bus/actions/workflows/docker-image.yml)
+
+</div>
+
 ---
 
 * Meet **Mind-Bus** — a persistent AI agent platform with memory, RAG/CAG, and Adaptive Context Compression (ACC).

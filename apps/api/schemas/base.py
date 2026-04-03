@@ -10,6 +10,7 @@ class ErrorResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    thread_id: Optional[UUID] = None
 
 class FeedbackRequest(BaseModel):
     thread_id: UUID

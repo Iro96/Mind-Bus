@@ -1,9 +1,32 @@
+import logging
+import os
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from .state import AgentState
 from .nodes import planner, retriever, compressor, tool_runner, responder
 from .checkpointer import PostgresCheckpointSaver
+from storage.postgres import db
+
+logger = logging.getLogger(__name__)
+
+
+def _create_checkpointer():
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        logger.info("DATABASE_URL not set; using in-memory graph checkpoints")
+        return MemorySaver()
+
+    try:
+        db.connect()
+    except Exception as exc:
+        logger.warning(
+            "Postgres checkpoints unavailable; using in-memory graph checkpoints: %s",
+            exc,
+        )
+        return MemorySaver()
+
+    return PostgresCheckpointSaver()
 
 def create_graph():
     graph = StateGraph(AgentState)
@@ -31,7 +54,7 @@ def create_graph():
     graph.add_edge("responder", END)
 
     # Add checkpointer for persistence
-    checkpointer = PostgresCheckpointSaver()
+    checkpointer = _create_checkpointer()
     app = graph.compile(checkpointer=checkpointer)
 
     return app

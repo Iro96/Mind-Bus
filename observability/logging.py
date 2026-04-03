@@ -55,6 +55,10 @@ def set_request_context(request_id: Optional[str] = None, thread_id: Optional[in
         prompt_version_var.set(prompt_version)
 
 
+def get_request_id() -> Optional[str]:
+    return request_id_var.get()
+
+
 def clear_request_context():
     request_id_var.set(None)
     thread_id_var.set(None)

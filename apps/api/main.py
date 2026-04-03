@@ -20,25 +20,26 @@ async def observability_middleware(request: Request, call_next):
     request_id = str(uuid.uuid4())
     set_request_context(request_id=request_id)
 
-    with trace_request(request_id):
-        start = time.perf_counter()
-        response = await call_next(request)
-        latency_ms = (time.perf_counter() - start) * 1000.0
-        record_request_latency(latency_ms)
+    try:
+        with trace_request(request_id):
+            start = time.perf_counter()
+            response = await call_next(request)
+            latency_ms = (time.perf_counter() - start) * 1000.0
+            record_request_latency(latency_ms)
 
-        logger.info(
-            "HTTP %s %s finished (request_id=%s, status=%s, latency_ms=%.2f)",
-            request.method,
-            request.url.path,
-            request_id,
-            response.status_code,
-            latency_ms,
-        )
+            logger.info(
+                "HTTP %s %s finished (request_id=%s, status=%s, latency_ms=%.2f)",
+                request.method,
+                request.url.path,
+                request_id,
+                response.status_code,
+                latency_ms,
+            )
 
-        check_all_alerts()
-
-    clear_request_context()
-    return response
+            check_all_alerts()
+            return response
+    finally:
+        clear_request_context()
 
 
 app.include_router(auth.router)

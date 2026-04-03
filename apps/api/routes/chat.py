@@ -3,7 +3,7 @@ import logging
 import uuid
 from fastapi import APIRouter, BackgroundTasks
 from ..schemas.base import BaseResponse, ChatRequest
-from ...agent import create_graph
+from agent import create_graph
 from observability.logging import set_request_context, clear_request_context
 from observability.tracing import trace_span
 from observability.metrics import record_tool_call_latency, record_request_latency

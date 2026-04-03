@@ -10,36 +10,38 @@ model_version_var = contextvars.ContextVar("model_version", default=None)
 prompt_version_var = contextvars.ContextVar("prompt_version", default=None)
 
 
+def _set_record_context(record: logging.LogRecord) -> None:
+    """Populate formatting fields for records emitted outside request scope."""
+    record.request_id = getattr(record, "request_id", None) or request_id_var.get() or "unknown"
+    record.thread_id = getattr(record, "thread_id", None) or thread_id_var.get() or threading.get_ident()
+    record.model_version = getattr(record, "model_version", None) or model_version_var.get() or "unknown"
+    record.prompt_version = getattr(record, "prompt_version", None) or prompt_version_var.get() or "unknown"
+
+
 class RequestContextFilter(logging.Filter):
     def filter(self, record):
-        record.request_id = request_id_var.get() or "unknown"
-        record.thread_id = thread_id_var.get() or threading.get_ident()
-        record.model_version = model_version_var.get() or "unknown"
-        record.prompt_version = prompt_version_var.get() or "unknown"
-        # Ensure all required attributes exist
-        if not hasattr(record, 'request_id'):
-            record.request_id = "unknown"
-        if not hasattr(record, 'thread_id'):
-            record.thread_id = threading.get_ident()
-        if not hasattr(record, 'model_version'):
-            record.model_version = "unknown"
-        if not hasattr(record, 'prompt_version'):
-            record.prompt_version = "unknown"
+        _set_record_context(record)
         return True
 
 
+class RequestContextFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        _set_record_context(record)
+        return super().format(record)
+
+
 def init_logging(level: int = logging.INFO):
-    formatter = logging.Formatter(
+    formatter = RequestContextFormatter(
         "%(asctime)s %(levelname)s [request=%(request_id)s thread=%(thread_id)s] "
         "[model=%(model_version)s prompt=%(prompt_version)s] %(name)s: %(message)s"
     )
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
+    handler.addFilter(RequestContextFilter())
 
     root = logging.getLogger()
     root.setLevel(level)
     root.handlers = [handler]
-    root.addFilter(RequestContextFilter())
     root.debug("Logging initialized")
 
 

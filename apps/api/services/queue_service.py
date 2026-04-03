@@ -18,6 +18,6 @@ def enqueue_request(payload: dict, timeout: int = 300) -> str:
     return job.id
 
 
-def process_queue_worker():
+async def process_queue_worker():
     """Deprecated local worker; use rq worker ai_agent_tasks."""
     logger.info("RQ worker should be started separately with 'rq worker ai_agent_tasks'")

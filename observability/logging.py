@@ -16,6 +16,15 @@ class RequestContextFilter(logging.Filter):
         record.thread_id = thread_id_var.get() or threading.get_ident()
         record.model_version = model_version_var.get() or "unknown"
         record.prompt_version = prompt_version_var.get() or "unknown"
+        # Ensure all required attributes exist
+        if not hasattr(record, 'request_id'):
+            record.request_id = "unknown"
+        if not hasattr(record, 'thread_id'):
+            record.thread_id = threading.get_ident()
+        if not hasattr(record, 'model_version'):
+            record.model_version = "unknown"
+        if not hasattr(record, 'prompt_version'):
+            record.prompt_version = "unknown"
         return True
 
 

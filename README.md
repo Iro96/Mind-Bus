@@ -1,4 +1,4 @@
-![demo\_chat](https://dummyimage.com/1000x400/0f172a/ffffff\&text=Mind-Bus+AI+Agent+Demo)
+![demo\_chat](https://dummyimage.com/1000x400/0f172a/ffffff\&text=Mind Bus+AI+Agent+Demo)
 ---
 
 * Meet **Mind-Bus** — a persistent AI agent platform with memory, RAG/CAG, and Adaptive Context Compression (ACC).

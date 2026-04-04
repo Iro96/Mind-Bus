@@ -1,6 +1,7 @@
 import logging
 import os
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 
 from .state import AgentState
@@ -9,13 +10,43 @@ from .checkpointer import PostgresCheckpointSaver
 from storage.postgres import db
 
 logger = logging.getLogger(__name__)
+_SHARED_MEMORY_CHECKPOINTER = MemorySaver()
+
+
+def _supports_postgres_checkpointer() -> bool:
+    required_methods = ("get_tuple", "put", "list", "put_writes")
+    return all(
+        getattr(PostgresCheckpointSaver, method_name)
+        is not getattr(BaseCheckpointSaver, method_name)
+        for method_name in required_methods
+    )
 
 
 def _create_checkpointer():
+    backend = os.getenv("GRAPH_CHECKPOINT_BACKEND", "memory").strip().lower() or "memory"
+    if backend != "postgres":
+        if backend != "memory":
+            logger.warning(
+                "Unknown GRAPH_CHECKPOINT_BACKEND=%s; using in-memory graph checkpoints",
+                backend,
+            )
+        return _SHARED_MEMORY_CHECKPOINTER
+
+    if not _supports_postgres_checkpointer():
+        logger.warning(
+            "GRAPH_CHECKPOINT_BACKEND=postgres requested, but PostgresCheckpointSaver "
+            "does not implement the current LangGraph checkpoint API; using in-memory "
+            "graph checkpoints"
+        )
+        return _SHARED_MEMORY_CHECKPOINTER
+
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
-        logger.info("DATABASE_URL not set; using in-memory graph checkpoints")
-        return MemorySaver()
+        logger.info(
+            "GRAPH_CHECKPOINT_BACKEND=postgres requested, but DATABASE_URL is not set; "
+            "using in-memory graph checkpoints"
+        )
+        return _SHARED_MEMORY_CHECKPOINTER
 
     try:
         db.connect()
@@ -24,7 +55,7 @@ def _create_checkpointer():
             "Postgres checkpoints unavailable; using in-memory graph checkpoints: %s",
             exc,
         )
-        return MemorySaver()
+        return _SHARED_MEMORY_CHECKPOINTER
 
     return PostgresCheckpointSaver()
 

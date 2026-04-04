@@ -1,4 +1,5 @@
-from typing import TypedDict, List, Optional, Any
+from typing import List, Optional, Any
+from typing_extensions import TypedDict
 
 class AgentState(TypedDict):
     messages: List[dict]  # Conversation history

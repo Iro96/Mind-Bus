@@ -3,6 +3,7 @@
 <div align="center">
   
 [![Docker Image CI](https://github.com/Iro96/Mind-Bus/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Iro96/Mind-Bus/actions/workflows/docker-image.yml)
+[![Tests](https://github.com/Iro96/Mind-Bus/actions/workflows/tests.yml/badge.svg)](https://github.com/Iro96/Mind-Bus/actions/workflows/tests.yml)
 
 </div>
 

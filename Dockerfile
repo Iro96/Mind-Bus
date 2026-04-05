@@ -10,7 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 ENV PYTHONPATH=/app
 
+RUN chmod +x /app/scripts/entrypoint.sh
+
 EXPOSE 8000
 
-# default entrypoint for API
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

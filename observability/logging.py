@@ -19,13 +19,27 @@ class RequestContextFilter(logging.Filter):
         return True
 
 
+class SafeFormatter(logging.Formatter):
+    def format(self, record):
+        if not hasattr(record, "request_id") or record.request_id is None:
+            record.request_id = "unknown"
+        if not hasattr(record, "thread_id") or record.thread_id is None:
+            record.thread_id = threading.get_ident()
+        if not hasattr(record, "model_version") or record.model_version is None:
+            record.model_version = "unknown"
+        if not hasattr(record, "prompt_version") or record.prompt_version is None:
+            record.prompt_version = "unknown"
+        return super().format(record)
+
+
 def init_logging(level: int = logging.INFO):
-    formatter = logging.Formatter(
+    formatter = SafeFormatter(
         "%(asctime)s %(levelname)s [request=%(request_id)s thread=%(thread_id)s] "
         "[model=%(model_version)s prompt=%(prompt_version)s] %(name)s: %(message)s"
     )
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
+    handler.addFilter(RequestContextFilter())
 
     root = logging.getLogger()
     root.setLevel(level)

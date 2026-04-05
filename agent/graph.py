@@ -1,9 +1,8 @@
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 
 from .state import AgentState
 from .nodes import planner, retriever, compressor, tool_runner, responder
-from .checkpointer import PostgresCheckpointSaver
+
 
 def create_graph():
     graph = StateGraph(AgentState)
@@ -30,8 +29,7 @@ def create_graph():
     graph.add_edge("tool_runner", "responder")
     graph.add_edge("responder", END)
 
-    # Add checkpointer for persistence
-    checkpointer = PostgresCheckpointSaver()
-    app = graph.compile(checkpointer=checkpointer)
+    # Compile the graph without a persistent checkpointer for runtime stability.
+    app = graph.compile(checkpointer=False)
 
     return app

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mind-Bus AI Agent</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 16px;
+      background: #f7f8fb;
+      color: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f3f4f6;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #111827;
+      color: #e5e7eb;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sidebar h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      letter-spacing: 0.03em;
+      color: #f9fafb;
+    }
+
+    .new-chat {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #111827;
+      border: 1px solid #374151;
+      color: #f9fafb;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .new-chat:hover {
+      background: #1f2937;
+      border-color: #4b5563;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+
+    .nav-item.active,
+    .nav-item:hover {
+      background: #1f2937;
+      color: #f8fafc;
+    }
+
+    .main {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .header p {
+      margin: 4px 0 0;
+      color: #6b7280;
+      max-width: 640px;
+      line-height: 1.6;
+    }
+
+    .chat-panel {
+      flex: 1;
+      border-radius: 24px;
+      background: #ffffff;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+      display: grid;
+      grid-template-rows: 1fr auto;
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 520px;
+      overflow-y: auto;
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+
+    .message {
+      max-width: 75%;
+      padding: 16px 18px;
+      border-radius: 20px;
+      line-height: 1.7;
+      word-break: break-word;
+      box-shadow: 0 5px 18px rgba(15, 23, 42, 0.06);
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: #0f172a;
+      color: #f8fafc;
+      border-bottom-right-radius: 6px;
+    }
+
+    .message.agent {
+      align-self: flex-start;
+      background: #f3f4f6;
+      color: #111827;
+      border-bottom-left-radius: 6px;
+    }
+
+    .input-row {
+      background: #f9fafb;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .input-row input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      padding: 16px 18px;
+      font-size: 1rem;
+      outline: none;
+      background: #ffffff;
+      color: #111827;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .input-row input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .input-row button {
+      border: none;
+      border-radius: 999px;
+      background: #2563eb;
+      color: white;
+      padding: 16px 24px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .input-row button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 960px) {
+      .page { grid-template-columns: 1fr; }
+      .sidebar { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+      .nav-item { display: none; }
+      .main { padding: 18px; }
+    }
+
+    @media (max-width: 640px) {
+      .header { flex-direction: column; align-items: flex-start; }
+      .chat-panel { min-height: 100vh; }
+      .chat-messages { min-height: 420px; padding: 18px; }
+      .input-row { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="sidebar">
+      <div>
+        <h2>Mind-Bus</h2>
+        <div class="new-chat">+ New chat</div>
+      </div>
+      <nav>
+        <a class="nav-item active" href="#">Home</a>
+        <a class="nav-item" href="#">Chat history</a>
+        <a class="nav-item" href="#">Settings</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section class="header">
+        <div>
+          <h1>AI Agent</h1>
+          <p>Talk to the Mind-Bus agent and get responses from the backend via the /chat endpoint.</p>
+        </div>
+        <div class="meta">Ready to answer your questions.</div>
+      </section>
+
+      <section class="chat-panel">
+        <div id="chatWindow" class="chat-messages"></div>
+
+        <div class="input-row">
+          <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off" />
+          <button id="sendButton">Send</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const chatWindow = document.getElementById('chatWindow');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+
+    function appendMessage(content, role) {
+      const message = document.createElement('div');
+      message.className = `message ${role}`;
+      message.textContent = content;
+      chatWindow.appendChild(message);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      appendMessage(text, 'user');
+      messageInput.value = '';
+      sendButton.disabled = true;
+
+      try {
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        appendMessage(data.message || 'No response received.', 'agent');
+      } catch (error) {
+        appendMessage('Error: ' + error.message, 'agent');
+      } finally {
+        sendButton.disabled = false;
+        messageInput.focus();
+      }
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>

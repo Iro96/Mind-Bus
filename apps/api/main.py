@@ -1,7 +1,10 @@
 import time
 import uuid
 import logging
+from pathlib import Path
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from .routes import chat, memory, documents, feedback, admin, tools, auth
 from observability.logging import init_logging, set_request_context, clear_request_context
 from observability.tracing import trace_request
@@ -13,6 +16,13 @@ logger = logging.getLogger(__name__)
 init_logging()
 
 app = FastAPI(title="AI Agent Platform API", version="1.0.0")
+
+static_dir = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return HTMLResponse(static_dir.joinpath("index.html").read_text(encoding="utf-8"))
 
 
 @app.middleware("http")

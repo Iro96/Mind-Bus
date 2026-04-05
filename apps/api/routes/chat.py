@@ -3,7 +3,7 @@ import logging
 import uuid
 from fastapi import APIRouter, BackgroundTasks
 from ..schemas.base import BaseResponse, ChatRequest
-from ...agent import create_graph
+from agent import create_graph
 from observability.logging import set_request_context, clear_request_context
 from observability.tracing import trace_span
 from observability.metrics import record_tool_call_latency, record_request_latency
@@ -34,7 +34,8 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
 
         # Create and run graph
         app = create_graph()
-        result = app.invoke(state)
+        thread_id = str(uuid.uuid4())
+        result = app.invoke(state, config={"configurable": {"thread_id": thread_id}})
 
         # Enqueue for future processing (scaling): store history+state for analytics and memory ingestion
         background_tasks.add_task(

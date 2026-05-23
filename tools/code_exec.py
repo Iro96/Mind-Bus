@@ -1,4 +1,5 @@
 from typing import Dict, Any
+import os
 import subprocess
 
 
@@ -6,6 +7,13 @@ def code_exec_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     code = args.get("code")
     if not code:
         return {"error": "No code provided"}
+    if os.getenv("ENABLE_CODE_EXEC", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return {
+            "tool": "code_exec",
+            "code": code,
+            "available": False,
+            "error": "code execution is disabled",
+        }
 
     try:
         # simple, non-persistent, untrusted code execution sandbox

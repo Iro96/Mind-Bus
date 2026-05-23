@@ -16,3 +16,16 @@ def test_enqueue_request_returns_empty_string_when_queue_is_unavailable(monkeypa
     job_id = queue_service.enqueue_request({"type": "chat_analysis"})
 
     assert job_id == ""
+
+
+def test_dispatch_request_processes_inline_when_queue_is_unavailable(monkeypatch):
+    monkeypatch.setattr(queue_service, "enqueue_request", lambda payload, timeout=300: "")
+
+    import worker.tasks as worker_tasks
+
+    monkeypatch.setattr(worker_tasks, "process_task", lambda payload: {"status": "ok", "payload": payload})
+
+    result = queue_service.dispatch_request({"type": "chat_analysis", "message": "hello"})
+
+    assert result["mode"] == "inline"
+    assert result["result"]["status"] == "ok"

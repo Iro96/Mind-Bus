@@ -1,15 +1,22 @@
-from fastapi import APIRouter, HTTPException
-from apps.api.schemas.base import BaseResponse
+from apps.api.fastapi_compat import APIRouter, HTTPException
+from apps.api.schemas.base import AuthTokenRequest, AuthTokenResponse
 from apps.api.security import create_access_token
+from apps.api.services.conversation_service import ConversationService
 
 router = APIRouter(prefix="/auth")
 
-# In a real app, replace with db user check.
-
-@router.post("/token")
-async def token(username: str, password: str):
-    if username != "admin" or password != "password":
+@router.post("/token", response_model=AuthTokenResponse)
+async def token(payload: AuthTokenRequest) -> AuthTokenResponse:
+    if payload.password != "password":
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": username, "roles": ["admin", "user"]})
-    return {"access_token": token, "token_type": "bearer"}
+    roles = ["admin", "user"] if payload.username == "admin" else ["user"]
+    user = ConversationService().upsert_demo_user(payload.username, roles)
+    access_token = create_access_token(
+        {
+            "sub": payload.username,
+            "user_id": user["id"],
+            "roles": roles,
+        }
+    )
+    return AuthTokenResponse(access_token=access_token, token_type="bearer")

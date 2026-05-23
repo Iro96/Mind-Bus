@@ -29,5 +29,8 @@ class SalienceScorer:
             if any(keyword in content.lower() for keyword in ['important', 'key', 'constraint']):
                 base_score = 0.8
         # Length factor: longer items might be more salient
-        length_factor = min(1.0, len(content.split()) / 100)
+        if item_type == "user_message":
+            length_factor = 1.0
+        else:
+            length_factor = max(0.3, min(1.0, len(content.split()) / 100))
         return base_score * length_factor

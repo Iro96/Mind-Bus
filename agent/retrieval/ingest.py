@@ -3,12 +3,15 @@ import uuid
 from agent.retrieval.qdrant_client import qdrant_client
 from agent.retrieval.chunking import chunker
 from storage.postgres import db
-from qdrant_client.models import PointStruct
+
+try:
+    from qdrant_client.models import PointStruct
+except ImportError:
+    PointStruct = None
 
 class DocumentIngester:
     def __init__(self, collection_name: str = "documents"):
         self.collection_name = collection_name
-        self.qdrant = qdrant_client.get_client()
         # Assume vector size for now - create collection lazily
         # qdrant_client.create_collection(collection_name, vector_size=768)  # Placeholder size
 
@@ -19,6 +22,7 @@ class DocumentIngester:
 
         # Ensure collection exists
         qdrant_client.create_collection(self.collection_name, vector_size=768)
+        qdrant = qdrant_client.get_client()
 
         # Chunk the text
         chunks = chunker.chunk_text(text, metadata)
@@ -37,21 +41,22 @@ class DocumentIngester:
             self._store_chunk_in_db(document_id, i, chunk, chunk_id)
 
             # Prepare point for Qdrant
-            point = PointStruct(
-                id=chunk_id,
-                vector=embedding,
-                payload={
-                    "document_id": document_id,
-                    "chunk_index": i,
-                    "text": chunk["text"],
-                    "metadata": chunk["metadata"]
-                }
-            )
-            points.append(point)
+            if PointStruct is not None:
+                point = PointStruct(
+                    id=chunk_id,
+                    vector=embedding,
+                    payload={
+                        "document_id": document_id,
+                        "chunk_index": i,
+                        "text": chunk["text"],
+                        "metadata": chunk["metadata"]
+                    }
+                )
+                points.append(point)
 
         # Upsert to Qdrant
-        if points:
-            self.qdrant.upsert(collection_name=self.collection_name, points=points)
+        if points and qdrant is not None:
+            qdrant.upsert(collection_name=self.collection_name, points=points)
 
         return chunk_ids
 

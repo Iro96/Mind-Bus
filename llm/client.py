@@ -6,9 +6,9 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 try:
-    import openai
+    from openai import OpenAI
 except ImportError:
-    openai = None
+    OpenAI = None
 
 
 class LLMClient:
@@ -17,14 +17,15 @@ class LLMClient:
     def __init__(self, model: str = "gpt-4.1", temperature: float = 0.2):
         self.model = model
         self.temperature = temperature
+        self.client = None
 
         api_key = os.environ.get("OPENAI_API_KEY")
-        if openai and api_key:
-            openai.api_key = api_key
+        if OpenAI and api_key:
+            self.client = OpenAI(api_key=api_key)
             self.enabled = True
         else:
             self.enabled = False
-            if not openai:
+            if not OpenAI:
                 logger.warning("openai package not installed; LLM calls are mocked")
             else:
                 logger.warning("OPENAI_API_KEY not set; LLM calls are mocked")
@@ -40,7 +41,7 @@ class LLMClient:
             except Exception:
                 return {"content": raw}
 
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=self.temperature,
@@ -48,7 +49,7 @@ class LLMClient:
         )
 
         if response and response.choices:
-            text = response.choices[0].message.get("content", "")
+            text = response.choices[0].message.content or ""
             try:
                 return json.loads(text)
             except json.JSONDecodeError:
@@ -60,12 +61,12 @@ class LLMClient:
         if not self.enabled:
             return "[mock response] please set OPENAI_API_KEY to enable real LLM output."
 
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=self.temperature,
             max_tokens=max_tokens,
         )
         if response and response.choices:
-            return response.choices[0].message.get("content", "")
+            return response.choices[0].message.content or ""
         return ""

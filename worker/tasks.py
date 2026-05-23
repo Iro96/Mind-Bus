@@ -31,10 +31,15 @@ def process_task(payload: dict) -> dict:
         extraction_result = extractor.extract_memories(extraction_request)
         # Write extracted memories
         manager = LongTermMemoryManager()
+        stored_count = 0
         for memory in extraction_result.new_memories:
-            manager.store_memory(memory)
+            try:
+                manager.store_memory(memory)
+                stored_count += 1
+            except Exception as exc:
+                logger.warning("Skipping memory persistence because storage is unavailable: %s", exc)
 
-        return {"status": "ok", "extracted": len(extraction_result.new_memories)}
+        return {"status": "ok", "extracted": len(extraction_result.new_memories), "stored": stored_count}
 
     if task_type == "feedback_reflection":
         reflection_pipeline = ReflectionPipeline()

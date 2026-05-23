@@ -4,13 +4,9 @@ from .schemas import (
     SemanticMemory,
     CorrectionMemory,
     MemoryExtractionRequest,
-    MemoryExtractionResponse
+    MemoryExtractionResponse,
 )
 from .scoring import MemoryScorer
-from .extraction import MemoryExtractor
-from .long_term import LongTermMemoryManager
-from .correction import CorrectionMemoryHandler
-from .short_term import ShortTermMemory
 
 __all__ = [
     "BaseMemory",
@@ -25,3 +21,19 @@ __all__ = [
     "CorrectionMemoryHandler",
     "ShortTermMemory"
 ]
+
+
+def __getattr__(name):
+    if name == "MemoryExtractor":
+        from .extraction import MemoryExtractor
+        return MemoryExtractor
+    if name == "LongTermMemoryManager":
+        from .long_term import LongTermMemoryManager
+        return LongTermMemoryManager
+    if name == "CorrectionMemoryHandler":
+        from .correction import CorrectionMemoryHandler
+        return CorrectionMemoryHandler
+    if name == "ShortTermMemory":
+        from .short_term import ShortTermMemory
+        return ShortTermMemory
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

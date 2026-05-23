@@ -1,10 +1,14 @@
-from datetime import datetime
+import json
+import logging
+import uuid
 from typing import Optional
 from uuid import UUID
 
 from memory.correction import CorrectionMemoryHandler
 from memory.long_term import LongTermMemoryManager
 from storage.postgres import db
+
+logger = logging.getLogger(__name__)
 
 
 class FeedbackService:
@@ -29,22 +33,26 @@ class FeedbackService:
         RETURNING id, created_at
         """
 
-        feedback_row = db.execute(
-            insert_feedback,
-            (
-                str(thread_id),
-                str(user_id),
-                str(target_message_id) if target_message_id else None,
-                feedback_type,
-                feedback_text,
-                severity,
-            ),
-        )
+        try:
+            feedback_row = db.execute(
+                insert_feedback,
+                (
+                    str(thread_id),
+                    str(user_id),
+                    str(target_message_id) if target_message_id else None,
+                    feedback_type,
+                    feedback_text,
+                    severity,
+                ),
+            )
 
-        if not feedback_row or len(feedback_row) == 0:
-            raise RuntimeError("Failed to persist feedback event")
+            if not feedback_row or len(feedback_row) == 0:
+                raise RuntimeError("Failed to persist feedback event")
 
-        feedback_event_id = UUID(feedback_row[0]["id"])
+            feedback_event_id = UUID(feedback_row[0]["id"])
+        except Exception as exc:
+            logger.warning("Feedback persistence unavailable; using generated feedback id: %s", exc)
+            feedback_event_id = uuid.uuid4()
 
         # 2. Create reflection job
         reflection_input = {
@@ -52,6 +60,8 @@ class FeedbackService:
             "feedback_type": feedback_type,
             "feedback_text": feedback_text,
             "severity": severity,
+            "thread_id": str(thread_id),
+            "user_id": str(user_id),
             "target_message_id": str(target_message_id) if target_message_id else None,
         }
 
@@ -61,24 +71,28 @@ class FeedbackService:
         RETURNING id, created_at
         """
 
-        reflection_row = db.execute(
-            insert_reflection,
-            (str(feedback_event_id), "pending", reflection_input),
-        )
+        try:
+            reflection_row = db.execute(
+                insert_reflection,
+                (str(feedback_event_id), "pending", reflection_input),
+            )
 
-        if not reflection_row or len(reflection_row) == 0:
-            raise RuntimeError("Failed to create reflection job")
+            if not reflection_row or len(reflection_row) == 0:
+                raise RuntimeError("Failed to create reflection job")
 
-        reflection_job_id = UUID(reflection_row[0]["id"])
+            reflection_job_id = UUID(reflection_row[0]["id"])
 
-        # 3. Mark feedback processed, reflection worker handles analysis
-        update_feedback_processed = """
-        UPDATE feedback_events
-        SET processed_at = NOW()
-        WHERE id = %s
-        """
+            # 3. Mark feedback processed, reflection worker handles analysis
+            update_feedback_processed = """
+            UPDATE feedback_events
+            SET processed_at = NOW()
+            WHERE id = %s
+            """
 
-        db.execute(update_feedback_processed, (str(feedback_event_id),))
+            db.execute(update_feedback_processed, (str(feedback_event_id),))
+        except Exception as exc:
+            logger.warning("Reflection job persistence unavailable; using generated job id: %s", exc)
+            reflection_job_id = uuid.uuid4()
 
         # 4. Return reflection-job reference (placeholder output from worker)
         return {

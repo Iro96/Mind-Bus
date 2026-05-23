@@ -1,7 +1,7 @@
 import time
 import uuid
 import logging
-from fastapi import FastAPI, Request
+from apps.api.fastapi_compat import FastAPI, Request
 from .routes import chat, memory, documents, feedback, admin, tools, auth
 from observability.logging import init_logging, set_request_context, clear_request_context
 from observability.tracing import trace_request

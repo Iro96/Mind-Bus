@@ -10,3 +10,4 @@ redis>=5.0.0
 rq>=1.0.0
 pyjwt>=2.8.0
 python-multipart==0.0.6
+requests>=2.31.0

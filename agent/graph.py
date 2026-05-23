@@ -1,8 +1,6 @@
 import logging
 import os
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.checkpoint.memory import MemorySaver
+from .langgraph_compat import BaseCheckpointSaver, END, MemorySaver, StateGraph
 
 from .state import AgentState
 from .nodes import planner, retriever, compressor, tool_runner, responder
@@ -49,7 +47,8 @@ def _create_checkpointer():
         return _SHARED_MEMORY_CHECKPOINTER
 
     try:
-        db.connect()
+        connection = db.connect()
+        connection.close()
     except Exception as exc:
         logger.warning(
             "Postgres checkpoints unavailable; using in-memory graph checkpoints: %s",

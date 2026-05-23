@@ -1,5 +1,9 @@
 from typing import Dict, Any
-import requests
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 
 def web_search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -7,6 +11,13 @@ def web_search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     limit = min(int(args.get("limit", 3)), 10)
     if not query:
         return {"error": "No query provided"}
+    if requests is None:
+        return {
+            "tool": "web_search",
+            "query": query,
+            "results": [],
+            "fallback": "requests_unavailable",
+        }
 
     try:
         resp = requests.get(
@@ -23,4 +34,10 @@ def web_search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
                     results.append({"text": item["Text"], "url": item.get("FirstURL")})
         return {"tool": "web_search", "query": query, "results": results}
     except Exception as e:
-        return {"error": str(e), "tool": "web_search"}
+        return {
+            "tool": "web_search",
+            "query": query,
+            "results": [],
+            "fallback": "network_unavailable",
+            "error": str(e),
+        }

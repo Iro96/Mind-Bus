@@ -1,29 +1,55 @@
 import time
 import logging
 import uuid
-from fastapi import APIRouter, BackgroundTasks
-from ..schemas.base import BaseResponse, ChatRequest
-from agent import create_graph
+from uuid import UUID
+
+import agent
+from apps.api.fastapi_compat import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from apps.api.security import get_current_user
+from apps.api.services.conversation_service import ConversationService
+from apps.api.services.queue_service import dispatch_request
+from apps.api.schemas.base import BaseResponse, ChatRequest, ChatResponse, ThreadMessageResponse, ThreadResponse
 from observability.logging import get_request_id
 from observability.tracing import trace_span
 from observability.metrics import record_request_latency
-from apps.api.services.queue_service import enqueue_request
 
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+conversation_service = ConversationService()
 
 
-@router.post("/chat")
-async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks) -> BaseResponse:
+@router.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(
+    request: ChatRequest,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+) -> ChatResponse:
     request_id = get_request_id() or str(uuid.uuid4())
-    thread_id = str(request.thread_id or request_id)
+    user_id = user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing user identity")
 
     with trace_span("chat_endpoint"):
         start = time.perf_counter()
+        try:
+            thread = conversation_service.get_or_create_thread(
+                user_id=UUID(str(user_id)),
+                requested_thread_id=request.thread_id,
+                title_hint=request.message,
+            )
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Thread not found",
+            ) from exc
+
+        thread_id = thread["id"]
+        conversation_service.add_message(UUID(thread_id), "user", request.message)
+        messages = conversation_service.build_state_messages(UUID(str(user_id)), UUID(thread_id))
 
         state = {
-            "messages": [{"role": "user", "content": request.message}],
+            "messages": messages,
             "current_task": None,
             "current_user_message": request.message,
             "tool_calls": [],
@@ -32,17 +58,20 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             "final_response": None,
         }
 
-        graph_app = create_graph()
+        graph_app = agent.create_graph()
         result = graph_app.invoke(
             state,
             config={"configurable": {"thread_id": thread_id}},
         )
+        final_response = result.get("final_response", "No response")
+        conversation_service.add_message(UUID(thread_id), "assistant", final_response)
 
         background_tasks.add_task(
-            enqueue_request,
+            dispatch_request,
             {
                 "type": "chat_analysis",
                 "request_id": request_id,
+                "user_id": str(user_id),
                 "thread_id": thread_id,
                 "message": request.message,
                 "state": state,
@@ -59,14 +88,28 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             latency_ms,
         )
 
-    return BaseResponse(message=result.get("final_response", "No response"))
+    return ChatResponse(message=final_response, thread_id=UUID(thread_id))
 
 
 @router.post("/chat/stream")
 async def chat_stream_endpoint() -> BaseResponse:
-    return BaseResponse(message="Chat stream endpoint placeholder")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Streaming chat is not implemented in this beta",
+    )
 
 
-@router.get("/threads/{thread_id}")
-async def get_thread(thread_id: str) -> BaseResponse:
-    return BaseResponse(message=f"Thread {thread_id} placeholder")
+@router.get("/threads/{thread_id}", response_model=ThreadResponse)
+async def get_thread(thread_id: UUID, user: dict = Depends(get_current_user)) -> ThreadResponse:
+    try:
+        messages = conversation_service.list_thread_messages(UUID(str(user["user_id"])), thread_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Thread not found",
+        ) from exc
+
+    return ThreadResponse(
+        thread_id=thread_id,
+        messages=[ThreadMessageResponse(**message) for message in messages],
+    )

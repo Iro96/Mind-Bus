@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from apps.api.fastapi_compat import APIRouter, Depends, HTTPException, status
 from ..schemas.base import BaseResponse
 from apps.api.security import require_roles
 
@@ -6,19 +6,28 @@ router = APIRouter(prefix="/admin", dependencies=[Depends(require_roles(["admin"
 
 @router.post("/reindex")
 async def reindex() -> BaseResponse:
-    return BaseResponse(message="Reindex placeholder")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Reindex is not implemented in this beta",
+    )
 
 @router.post("/rebuild-memory")
 async def rebuild_memory() -> BaseResponse:
-    return BaseResponse(message="Rebuild memory placeholder")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Memory rebuild is not implemented in this beta",
+    )
 
 @router.post("/rollback")
 async def rollback() -> BaseResponse:
-    return BaseResponse(message="Rollback placeholder")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Rollback is not implemented in this beta",
+    )
 
 @router.get("/health")
 async def health() -> BaseResponse:
-    return BaseResponse(message="Health check placeholder")
+    return BaseResponse(message="ok")
 
 from observability.metrics import metrics as metrics_registry, get_evaluation_metrics
 

@@ -1,6 +1,6 @@
 -- Initial schema migration for AI Agent Platform
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Create users table
 CREATE TABLE users (

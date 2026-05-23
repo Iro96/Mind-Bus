@@ -1,15 +1,22 @@
-from typing import List, Dict, Any, Tuple
-import uuid
+from typing import List, Dict, Any
 from agent.retrieval.qdrant_client import qdrant_client
-from qdrant_client.models import Filter, SearchRequest, Fusion
+
+try:
+    from qdrant_client.models import Filter, SearchRequest
+except ImportError:
+    Filter = Any
+    SearchRequest = None
 
 class HybridSearcher:
     def __init__(self, collection_name: str = "documents"):
         self.collection_name = collection_name
-        self.qdrant = qdrant_client.get_client()
 
     def hybrid_search(self, query: str, limit: int = 10, filter: Filter = None) -> List[Dict[str, Any]]:
         """Perform hybrid search using dense and sparse vectors."""
+        qdrant = qdrant_client.get_client()
+        if qdrant is None or SearchRequest is None:
+            return []
+
         # Mock dense embedding
         dense_embedding = self._mock_dense_embedding(query)
 
@@ -17,7 +24,7 @@ class HybridSearcher:
         sparse_embedding = self._mock_sparse_embedding(query)
 
         # Perform hybrid search
-        search_results = self.qdrant.search_batch(
+        search_results = qdrant.search_batch(
             collection_name=self.collection_name,
             requests=[
                 SearchRequest(

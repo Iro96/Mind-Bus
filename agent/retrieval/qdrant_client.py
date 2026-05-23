@@ -1,6 +1,13 @@
 import os
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from typing import Any
+
+try:
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, VectorParams
+except ImportError:
+    QdrantClient = None
+    Distance = Any
+    VectorParams = None
 
 class QdrantClientManager:
     def __init__(self):
@@ -11,6 +18,8 @@ class QdrantClientManager:
     @property
     def client(self):
         if self._client is None:
+            if QdrantClient is None:
+                return None
             try:
                 self._client = QdrantClient(url=self.url, api_key=self.api_key)
             except Exception as e:
@@ -18,10 +27,12 @@ class QdrantClientManager:
                 self._client = None
         return self._client
 
-    def create_collection(self, collection_name: str, vector_size: int, distance: Distance = Distance.COSINE):
+    def create_collection(self, collection_name: str, vector_size: int, distance=None):
         """Create a Qdrant collection if it doesn't exist."""
         client = self.client
-        if client and not client.collection_exists(collection_name):
+        if distance is None and QdrantClient is not None:
+            distance = Distance.COSINE
+        if client and VectorParams is not None and not client.collection_exists(collection_name):
             client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=vector_size, distance=distance),

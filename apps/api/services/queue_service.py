@@ -38,6 +38,19 @@ def enqueue_request(payload: dict, timeout: int = 300) -> str:
     return job.id
 
 
+def dispatch_request(payload: dict, timeout: int = 300) -> dict:
+    job_id = enqueue_request(payload, timeout=timeout)
+    if job_id:
+        return {"mode": "queue", "job_id": job_id}
+
+    try:
+        from worker.tasks import process_task
+        return {"mode": "inline", "job_id": "", "result": process_task(payload)}
+    except Exception as exc:
+        logger.warning("Inline background processing failed: %s", exc)
+        return {"mode": "failed", "job_id": "", "error": str(exc)}
+
+
 async def process_queue_worker():
     """Deprecated local worker; use rq worker ai_agent_tasks."""
     logger.info("RQ worker should be started separately with 'rq worker ai_agent_tasks'")

@@ -1,6 +1,10 @@
-from langgraph.checkpoint.memory import MemorySaver
-
 import agent.graph as graph_module
+from agent.langgraph_compat import MemorySaver
+
+
+class StubConnection:
+    def close(self):
+        return None
 
 
 def test_create_checkpointer_uses_memory_saver_without_database_url(monkeypatch):
@@ -46,7 +50,7 @@ def test_create_checkpointer_falls_back_when_postgres_saver_is_unsupported(monke
     monkeypatch.setenv("GRAPH_CHECKPOINT_BACKEND", "postgres")
     monkeypatch.setenv("DATABASE_URL", "postgresql://example.invalid:5432/db")
     monkeypatch.setattr(graph_module, "_supports_postgres_checkpointer", lambda: False)
-    monkeypatch.setattr(graph_module.db, "connect", lambda: None)
+    monkeypatch.setattr(graph_module.db, "connect", lambda: StubConnection())
 
     checkpointer = graph_module._create_checkpointer()
 

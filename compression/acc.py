@@ -93,7 +93,10 @@ class ACC:
 
     def _detect_novelty(self, items: List[Dict[str, Any]], session_state: AgentState) -> List[float]:
         # Basic heuristic: novelty based on presence in recent context
-        recent_context = getattr(session_state, 'recent_context', '')
+        if isinstance(session_state, dict):
+            recent_context = str(session_state.get("recent_context", ""))
+        else:
+            recent_context = str(getattr(session_state, "recent_context", ""))
         scores = []
         for item in items:
             if item['content'] in recent_context:
@@ -123,7 +126,7 @@ class ACC:
                 score = salience[i] * novelty[i]
                 if contradictions[i]:
                     score *= 2
-                if score > 0.5:  # Threshold
+                if item_type == "user_message" or score > 0.5:
                     retained.append(item)
                     type_counts[item_type] += 1
         return retained

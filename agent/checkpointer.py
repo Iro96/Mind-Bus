@@ -1,7 +1,7 @@
 import json
 import hashlib
 from typing import Iterator, Optional, Any, Dict
-from langgraph.checkpoint.base import BaseCheckpointSaver
+from .langgraph_compat import BaseCheckpointSaver
 from storage.postgres import db
 
 class PostgresCheckpointSaver(BaseCheckpointSaver):

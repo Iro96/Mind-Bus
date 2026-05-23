@@ -1,10 +1,11 @@
-from typing import List, Optional, Dict, Any
-from uuid import UUID
-from datetime import datetime, timedelta
-from memory.schemas import BaseMemory, EpisodicMemory, SemanticMemory, CorrectionMemory
-from memory.scoring import MemoryScorer
-from storage.postgres import db  # Use the global db instance
 import json
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from memory.schemas import BaseMemory, CorrectionMemory, EpisodicMemory, SemanticMemory
+from memory.scoring import MemoryScorer
+from storage.postgres import db
 
 
 class LongTermMemoryManager:
@@ -45,6 +46,7 @@ class LongTermMemoryManager:
     def retrieve_memories(
         self,
         user_id: UUID,
+        thread_id: Optional[UUID] = None,
         memory_type: Optional[str] = None,
         key_pattern: Optional[str] = None,
         limit: int = 100
@@ -54,6 +56,7 @@ class LongTermMemoryManager:
 
         Args:
             user_id: User ID
+            thread_id: Optional filter by thread
             memory_type: Optional filter by memory type
             key_pattern: Optional pattern to match keys
             limit: Maximum number of memories to return
@@ -66,6 +69,10 @@ class LongTermMemoryManager:
         WHERE user_id = %s AND status = 'active'
         """
         params = [str(user_id)]
+
+        if thread_id:
+            query += " AND thread_id = %s"
+            params.append(str(thread_id))
 
         if memory_type:
             query += " AND memory_type = %s"
@@ -86,6 +93,36 @@ class LongTermMemoryManager:
                 memories.append(memory)
 
         return memories
+
+    def find_memory(
+        self,
+        user_id: UUID,
+        thread_id: Optional[UUID],
+        memory_type: str,
+        key: str,
+    ) -> Optional[BaseMemory]:
+        query = """
+        SELECT *
+        FROM memories
+        WHERE user_id = %s
+          AND memory_type = %s
+          AND key = %s
+          AND status = 'active'
+        """
+        params: list[Any] = [str(user_id), memory_type, key]
+
+        if thread_id:
+            query += " AND thread_id = %s"
+            params.append(str(thread_id))
+        else:
+            query += " AND thread_id IS NULL"
+
+        query += " ORDER BY updated_at DESC, created_at DESC LIMIT 1"
+
+        rows = db.execute(query, params)
+        if not rows:
+            return None
+        return self._row_to_memory(rows[0])
 
     def update_memory(self, memory_id: UUID, updates: Dict[str, Any]) -> bool:
         """
@@ -123,6 +160,28 @@ class LongTermMemoryManager:
         result = db.execute(query, params)
         return result > 0
 
+    def upsert_memory(self, memory: BaseMemory) -> tuple[str, UUID]:
+        existing = self.find_memory(
+            user_id=memory.user_id,
+            thread_id=memory.thread_id,
+            memory_type=memory.memory_type,
+            key=memory.key,
+        )
+        if existing and existing.id:
+            self.update_memory(
+                existing.id,
+                {
+                    "value_json": memory.value_json,
+                    "confidence": memory.confidence,
+                    "status": memory.status,
+                    "expires_at": self._calculate_expiry(memory),
+                },
+            )
+            return "updated", existing.id
+
+        created_id = self.store_memory(memory)
+        return "created", created_id
+
     def merge_duplicate_memories(self, user_id: UUID, memory_type: str):
         """
         Merge duplicate memories of the same type and key.
@@ -146,7 +205,7 @@ class LongTermMemoryManager:
 
     def _calculate_expiry(self, memory: BaseMemory) -> Optional[datetime]:
         """Calculate expiry date based on memory type."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if memory.memory_type == "correction":
             # Expire correction memories after 30 days unless reinforced
             return now + timedelta(days=30)

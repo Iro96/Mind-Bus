@@ -4,15 +4,13 @@ import io
 import pytest
 
 from apps.api.fastapi_compat import HTTPException, UploadFile
-from apps.api.routes import admin, chat, documents, memory
+from apps.api.routes import admin, chat, documents
 
 
 @pytest.mark.parametrize(
     ("callable_obj", "args"),
     [
         (chat.chat_stream_endpoint, ()),
-        (memory.get_memories, ()),
-        (memory.refresh_memories, ()),
         (documents.upload_document, (UploadFile(filename="demo.txt", file=io.BytesIO(b"demo")),)),
         (admin.reindex, ()),
         (admin.rebuild_memory, ()),

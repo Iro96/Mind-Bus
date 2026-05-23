@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Any, Optional
-from uuid import UUID
 from datetime import datetime
+from typing import Any, Literal, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 class BaseResponse(BaseModel):
     message: str
@@ -48,3 +49,41 @@ class FeedbackResponse(BaseModel):
     reflection_job_id: UUID
     correction_memory_id: Optional[UUID] = None
     reflection_output: dict
+
+
+MemoryType = Literal["episodic", "semantic", "correction"]
+
+
+class MemoryResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    thread_id: Optional[UUID] = None
+    memory_type: MemoryType
+    key: str
+    value_json: dict[str, Any] = Field(default_factory=dict)
+    confidence: Optional[float] = None
+    source_type: Optional[str] = None
+    source_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    status: str
+
+
+class MemoryListResponse(BaseModel):
+    memories: list[MemoryResponse]
+    count: int
+
+
+class MemoryRefreshRequest(BaseModel):
+    thread_id: UUID
+
+
+class MemoryRefreshResponse(BaseModel):
+    thread_id: UUID
+    created_count: int
+    updated_count: int
+    skipped_count: int
+    created_memory_ids: list[UUID] = Field(default_factory=list)
+    updated_memory_ids: list[UUID] = Field(default_factory=list)
+    memories: list[MemoryResponse] = Field(default_factory=list)

@@ -3,7 +3,7 @@ import os
 from .langgraph_compat import BaseCheckpointSaver, END, MemorySaver, StateGraph
 
 from .state import AgentState
-from .nodes import planner, retriever, compressor, tool_runner, responder
+from .nodes import planner, retriever, compressor, tool_runner, reflector, responder
 from .checkpointer import PostgresCheckpointSaver
 from storage.postgres import db
 
@@ -66,6 +66,7 @@ def create_graph():
     graph.add_node("retriever", retriever)
     graph.add_node("compressor", compressor)
     graph.add_node("tool_runner", tool_runner)
+    graph.add_node("reflector", reflector)
     graph.add_node("responder", responder)
 
     # Set entry point
@@ -77,10 +78,14 @@ def create_graph():
 
     # Add conditional edges
     def route_after_compressor(state: AgentState):
+        return "tool_runner" if state.get("tool_calls") else "reflector"
+
+    def route_after_reflector(state: AgentState):
         return "tool_runner" if state.get("tool_calls") else "responder"
 
     graph.add_conditional_edges("compressor", route_after_compressor)
-    graph.add_edge("tool_runner", "responder")
+    graph.add_edge("tool_runner", "reflector")
+    graph.add_conditional_edges("reflector", route_after_reflector)
     graph.add_edge("responder", END)
 
     # Add checkpointer for persistence

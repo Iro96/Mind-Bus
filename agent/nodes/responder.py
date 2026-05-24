@@ -10,19 +10,32 @@ llm_client = LLMClient()
 
 def responder(state: AgentState) -> AgentState:
     with trace_span("responder"):
-        if state["tool_results"]:
-            tool_summary = "\n".join([str(result) for result in state["tool_results"]])
-            prompt = (
-                "You are an AI assistant. You were given these tool results: \n" + tool_summary + "\n"
-                "Respond concisely and continue the conversation."
+        conversation_text = "\n".join(
+            [f"{message['role']}: {message['content']}" for message in state.get("messages", [])]
+        )
+        reflection = state.get("reflection", {})
+        reflection_notes = "\n".join(f"- {note}" for note in reflection.get("notes", []))
+
+        prompt_sections = [
+            "You are an AI assistant. Use the available evidence carefully, be concise, and do not invent facts.",
+            "Conversation:\n" + conversation_text,
+        ]
+
+        if state.get("response_context"):
+            prompt_sections.append("Agent context:\n" + state["response_context"])
+        elif state.get("compact_context"):
+            prompt_sections.append("Compressed context:\n" + state["compact_context"])
+
+        if reflection_notes:
+            prompt_sections.append("Reflection guidance:\n" + reflection_notes)
+
+        if reflection.get("status") == "tool_failures":
+            prompt_sections.append(
+                "If a tool failed, answer with the best available information and clearly mention the limitation."
             )
-            response = llm_client.generate_text(prompt)
-        else:
-            conversation_text = "\n".join([f"{m['role']}: {m['content']}" for m in state["messages"]])
-            prompt = (
-                "You are an AI assistant. Continue the conversation with context:\n" + conversation_text
-            )
-            response = llm_client.generate_text(prompt)
+
+        prompt_sections.append("Respond to the latest user message.")
+        response = llm_client.generate_text("\n\n".join(prompt_sections))
 
         state["final_response"] = response
         # Add to messages

@@ -73,6 +73,7 @@ You can run Mind-Bus locally or on your own infrastructure.
 * Postgres
 * Redis
 * Qdrant
+
 ### Quick Start
 
 ```bash
@@ -83,7 +84,7 @@ docker-compose up --build
 
 Then open:
 
-```
+```html
 http://localhost:8000
 ```
 

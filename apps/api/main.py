@@ -1,18 +1,37 @@
+import asyncio
+import logging
 import time
 import uuid
-import logging
+from contextlib import asynccontextmanager
+
 from apps.api.fastapi_compat import FastAPI, Request
 from .routes import chat, memory, documents, feedback, admin, tools, auth
 from observability.logging import init_logging, set_request_context, clear_request_context
 from observability.tracing import trace_request
 from observability.metrics import record_request_latency
 from observability.alerts import check_all_alerts
+from apps.api.services.queue_service import process_queue_worker
 
 logger = logging.getLogger(__name__)
 
 init_logging()
 
-app = FastAPI(title="AI Agent Platform API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    queue_worker_task = asyncio.create_task(process_queue_worker())
+    try:
+        yield
+    finally:
+        if not queue_worker_task.done():
+            queue_worker_task.cancel()
+            try:
+                await queue_worker_task
+            except asyncio.CancelledError:
+                pass
+
+
+app = FastAPI(title="AI Agent Platform API", version="1.0.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -49,15 +68,6 @@ app.include_router(documents.router)
 app.include_router(feedback.router)
 app.include_router(admin.router)
 app.include_router(tools.router)
-
-from apps.api.services.queue_service import process_queue_worker
-import asyncio
-
-
-@app.on_event("startup")
-async def startup_event():
-    # Start background queue worker for scale-out processing
-    asyncio.create_task(process_queue_worker())
 
 
 if __name__ == "__main__":

@@ -51,41 +51,8 @@ def _is_retryable_failure(result: Dict[str, Any]) -> bool:
     return any(marker in error_text for marker in RETRYABLE_ERROR_MARKERS)
 
 
-def _summarize_file_system_result(result: Dict[str, Any]) -> str:
-    action = result.get("action", "file_system")
-    path = result.get("path") or "unknown path"
-    status = "ok" if result.get("success") is not False else "failed"
-    error = result.get("error")
-
-    if action == "read_text":
-        details = f"chars={result.get('chars', 0)}"
-        if result.get("truncated"):
-            details = f"{details}, truncated=true"
-        summary = f"file_system {action} {path} status={status} {details}"
-    elif action in {"list_dir", "tree"}:
-        summary = f"file_system {action} {path} status={status} entries={result.get('count', 0)}"
-        if result.get("truncated"):
-            summary = f"{summary}, truncated=true"
-    elif action == "replace_text":
-        summary = f"file_system {action} {path} status={status} replacements={result.get('replacements', 0)}"
-    elif action in {"write_text", "append_text"}:
-        summary = f"file_system {action} {path} status={status} chars={result.get('chars', 0)}"
-    elif action == "move_path":
-        summary = f"file_system {action} {path} -> {result.get('destination', '')} status={status}"
-    elif action == "delete_path":
-        summary = f"file_system {action} {path} status={status}"
-    else:
-        summary = f"file_system {action} {path} status={status}"
-
-    if error:
-        summary = f"{summary}; error={_truncate(error)}"
-    return summary
-
-
 def _summarize_tool_result(result: Dict[str, Any]) -> str:
     tool_name = result.get("tool", "tool")
-    if tool_name == "file_system":
-        return _summarize_file_system_result(result)
     if _is_tool_failure(result):
         return f"{tool_name} failed: {_truncate(result.get('error', 'unknown error'))}"
     if "result" in result:

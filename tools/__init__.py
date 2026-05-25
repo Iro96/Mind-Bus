@@ -2,13 +2,11 @@ from typing import Any, Dict
 from .calculator import calculator_tool
 from .web_search import web_search_tool
 from .code_exec import code_exec_tool
-from .file_system import file_system_tool
 
 TOOL_REGISTRY = {
     "calculator": calculator_tool,
     "web_search": web_search_tool,
     "code_exec": code_exec_tool,
-    "file_system": file_system_tool,
 }
 
 

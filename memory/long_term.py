@@ -160,6 +160,27 @@ class LongTermMemoryManager:
         result = db.execute(query, params)
         return result > 0
 
+    def delete_memory(self, memory_id: UUID, user_id: UUID) -> None:
+        """
+        Delete a memory by ID.
+
+        Args:
+            memory_id: ID of the memory to delete
+            user_id: User ID (for authorization check)
+
+        Raises:
+            KeyError: If memory not found or user doesn't own it
+        """
+        query = """
+        DELETE FROM memories
+        WHERE id = %s AND user_id = %s
+        """
+        params = [str(memory_id), str(user_id)]
+        
+        result = db.execute(query, params)
+        if result == 0:
+            raise KeyError(f"Memory {memory_id} not found or unauthorized")
+
     def upsert_memory(self, memory: BaseMemory) -> tuple[str, UUID]:
         existing = self.find_memory(
             user_id=memory.user_id,

@@ -15,7 +15,7 @@ from ..schemas.base import (
     MemoryResponse,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/memory")
 conversation_service = ConversationService()
 memory_manager = LongTermMemoryManager()
 memory_extractor = MemoryExtractor()
@@ -160,3 +160,48 @@ async def refresh_memories(
         updated_memory_ids=sorted(updated_ids, key=str),
         memories=serialized_memories,
     )
+
+
+@router.get("", response_model=dict)
+async def get_memories_alias(
+    memory_type: Optional[str] = None,
+    limit: int = 50,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Alias for /memories endpoint for frontend compatibility"""
+    user_id = _require_user_id(user)
+    validated_memory_type = _validate_memory_type(memory_type)
+    bounded_limit = max(1, min(limit, 200))
+
+    try:
+        memories = memory_manager.retrieve_memories(
+            user_id=user_id,
+            thread_id=None,
+            memory_type=validated_memory_type,
+            key_pattern=None,
+            limit=bounded_limit,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Memory storage unavailable") from exc
+
+    serialized = [_serialize_memory(memory) for memory in memories]
+    return {"memories": serialized, "count": len(serialized)}
+
+
+@router.delete("/{memory_id}")
+async def delete_memory(memory_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Delete a memory by ID"""
+    user_id = _require_user_id(user)
+    
+    try:
+        parsed_id = UUID(memory_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid memory_id")
+    
+    try:
+        memory_manager.delete_memory(parsed_id, user_id)
+        return {"message": "Memory deleted"}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to delete memory") from exc

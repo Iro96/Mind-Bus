@@ -99,9 +99,27 @@ async def chat_stream_endpoint() -> BaseResponse:
     )
 
 
-@router.get("/threads/{thread_id}", response_model=ThreadResponse)
-async def get_thread(thread_id: UUID, user: dict = Depends(get_current_user)) -> ThreadResponse:
+@router.get("/chat/threads", response_model=dict)
+async def list_threads(user: dict = Depends(get_current_user)):
     try:
+        threads = conversation_service.list_user_threads(UUID(str(user["user_id"])))
+    except Exception as exc:
+        logger.error("Error listing threads: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list threads",
+        ) from exc
+
+    return {
+        "threads": threads,
+        "count": len(threads)
+    }
+
+
+@router.get("/chat/threads/{thread_id}", response_model=dict)
+async def get_thread(thread_id: UUID, user: dict = Depends(get_current_user)):
+    try:
+        thread = conversation_service.get_thread(UUID(str(user["user_id"])), thread_id)
         messages = conversation_service.list_thread_messages(UUID(str(user["user_id"])), thread_id)
     except KeyError as exc:
         raise HTTPException(
@@ -109,7 +127,7 @@ async def get_thread(thread_id: UUID, user: dict = Depends(get_current_user)) ->
             detail="Thread not found",
         ) from exc
 
-    return ThreadResponse(
-        thread_id=thread_id,
-        messages=[ThreadMessageResponse(**message) for message in messages],
-    )
+    return {
+        "thread": thread,
+        "messages": messages
+    }

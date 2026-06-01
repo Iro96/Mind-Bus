@@ -25,7 +25,7 @@
         <p>Loading memories...</p>
       </div>
 
-      <div v-else-if="memories.length === 0" class="empty-state">
+      <div v-else-if="filteredMemories.length === 0" class="empty-state">
         <p>No memories found</p>
       </div>
 

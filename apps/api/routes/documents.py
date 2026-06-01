@@ -1,5 +1,6 @@
 import logging
 from uuid import UUID
+from urllib.parse import quote
 from apps.api.fastapi_compat import APIRouter, File, HTTPException, UploadFile, status, Depends
 from apps.api.security import get_current_user
 from ..schemas.base import BaseResponse
@@ -10,6 +11,15 @@ logger = logging.getLogger(__name__)
 # In-memory document store (replace with database in production)
 _documents_store = {}
 _document_counter = 0
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize filename by removing control characters and properly encoding it."""
+    # Remove control characters (ASCII < 0x20 and 0x7f)
+    sanitized = ''.join(c for c in filename if ord(c) >= 0x20 and ord(c) != 0x7f)
+    # Remove or escape problematic characters
+    sanitized = sanitized.replace('"', '').replace(';', '').replace('\\', '')
+    return sanitized.strip()
 
 
 @router.post("/documents/upload")
@@ -39,13 +49,13 @@ async def upload_document(
         
         _documents_store[doc_id] = {
             **document,
-            "content": contents.decode('utf-8', errors='ignore')
+            "content": contents
         }
         
         return {"document": document}
     except Exception as e:
         logger.error(f"Error uploading document: {e}")
-        raise HTTPException(status_code=500, detail="Failed to upload document")
+        raise HTTPException(status_code=500, detail="Failed to upload document") from e
 
 
 @router.get("/documents")
@@ -71,11 +81,18 @@ async def download_document(doc_id: str, user: dict = Depends(get_current_user))
     from fastapi.responses import StreamingResponse
     import io
     
-    content = doc["content"].encode('utf-8')
+    sanitized_filename = _sanitize_filename(doc['filename'])
+    quoted_filename = quote(sanitized_filename.encode('utf-8'), safe='')
+    
+    headers = {
+        "Content-Disposition": f'attachment; filename="{sanitized_filename}"; filename*=UTF-8\'\'{quoted_filename}'
+    }
+    
+    content = doc["content"]
     return StreamingResponse(
         iter([content]),
         media_type=doc["content_type"],
-        headers={"Content-Disposition": f"attachment; filename={doc['filename']}"}
+        headers=headers
     )
 
 

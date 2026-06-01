@@ -3,9 +3,9 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
@@ -16,9 +16,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-RUN npm install -g serve
+RUN npm install -g serve && chown -R node:node /app
 
-COPY --from=builder /app/dist ./dist
+USER node
+
+COPY --from=builder --chown=node:node /app/dist ./dist
 
 EXPOSE 5173
 

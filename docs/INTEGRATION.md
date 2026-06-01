@@ -433,7 +433,7 @@ Signature: [cryptographic signature]
 
 ```bash
 # Terminal 1: Backend
-cd /
+cd <repo-root>
 python -m apps.api.main
 
 # Terminal 2: Frontend

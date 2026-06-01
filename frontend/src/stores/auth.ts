@@ -8,30 +8,61 @@ interface AuthUser {
   roles: string[]
 }
 
+function decodeJWTPayload(token: string): any | null {
+  try {
+    let payload = token.split('.')[1]
+    // Add padding if needed (Base64URL -> Base64)
+    const padding = 4 - (payload.length % 4)
+    if (padding !== 4) {
+      payload += '='.repeat(padding)
+    }
+    payload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(payload))
+  } catch (e) {
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('token'))
+  const token = ref<string | null>(null)
   const user = ref<AuthUser | null>(null)
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => !!user.value)
+
+  const initializeFromToken = () => {
+    const stored = localStorage.getItem('auth_user')
+    if (stored) {
+      try {
+        user.value = JSON.parse(stored)
+      } catch (e) {
+        user.value = null
+      }
+    }
+  }
 
   const login = async (username: string, password: string) => {
     const response = await axios.post('/auth/token', { username, password })
-    token.value = response.data.access_token
-    localStorage.setItem('token', response.data.access_token)
+    const jwt = response.data.access_token
     
-    // Decode token to get user info (basic JWT parsing)
-    const payload = JSON.parse(atob(response.data.access_token.split('.')[1]))
-    user.value = {
-      username: payload.sub,
-      user_id: payload.user_id,
-      roles: payload.roles
+    // Decode JWT to get user info (for display purposes only)
+    const payload = decodeJWTPayload(jwt)
+    if (payload) {
+      user.value = {
+        username: payload.sub || username,
+        user_id: payload.user_id,
+        roles: payload.roles || []
+      }
+      localStorage.setItem('auth_user', JSON.stringify(user.value))
     }
+    
+    // Token is now set as HttpOnly cookie by backend
+    token.value = jwt
   }
 
   const logout = () => {
     token.value = null
     user.value = null
-    localStorage.removeItem('token')
+    localStorage.removeItem('auth_user')
   }
 
   return {
@@ -39,6 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isAuthenticated,
     login,
-    logout
+    logout,
+    initializeFromToken
   }
 })

@@ -25,6 +25,7 @@ export const useChatStore = defineStore('chat', () => {
   const error = ref<string | null>(null)
 
   const fetchThreads = async () => {
+    error.value = null
     loading.value = true
     try {
       const response = await axios.get('/chat/threads')
@@ -37,6 +38,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const fetchMessages = async (threadId: string) => {
+    error.value = null
     loading.value = true
     try {
       const response = await axios.get(`/chat/threads/${threadId}`)
@@ -50,6 +52,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const sendMessage = async (message: string, threadId?: string) => {
+    error.value = null
     loading.value = true
     try {
       const response = await axios.post('/chat', {

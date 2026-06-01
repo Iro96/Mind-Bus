@@ -74,7 +74,7 @@ docker-compose -f deploy/docker-compose.yml up
 docker-compose -f deploy/docker-compose.yml logs -f api
 
 # Access database
-docker-compose -f deploy/docker-compose.yml exec postgres psql -U postgres -d ai_agent
+docker-compose -f deploy/docker-compose.yml exec postgres psql -U postgres -d mindbus
 
 # Stop services
 docker-compose -f deploy/docker-compose.yml down

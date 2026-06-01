@@ -115,7 +115,9 @@ const uploadFiles = async (files: FileList) => {
       const response = await axios.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (e) => {
-          uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+          if (e.total && typeof e.total === 'number') {
+            uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+          }
         }
       })
 
@@ -133,11 +135,26 @@ const downloadDocument = async (docId: string) => {
       responseType: 'blob'
     })
 
+    let filename = docId
+    const contentDisposition = response.headers['content-disposition']
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename=([^;]+)/)
+      if (filenameMatch) {
+        filename = filenameMatch[1] ? decodeURIComponent(filenameMatch[1]) : (filenameMatch[2] || docId).trim('"')
+      }
+    } else {
+      const doc = documents.value.find(d => d.id === docId)
+      filename = doc?.filename || docId
+    }
+
     const url = window.URL.createObjectURL(response.data)
     const link = document.createElement('a')
     link.href = url
-    link.download = ''
+    link.download = filename
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
   } catch (err) {
     console.error('Download failed', err)
   }

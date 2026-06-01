@@ -15,7 +15,7 @@ from ..schemas.base import (
     MemoryResponse,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/memory")
 conversation_service = ConversationService()
 memory_manager = LongTermMemoryManager()
 memory_extractor = MemoryExtractor()
@@ -194,7 +194,14 @@ async def delete_memory(memory_id: str, user: dict = Depends(get_current_user)) 
     user_id = _require_user_id(user)
     
     try:
-        memory_manager.delete_memory(UUID(memory_id), user_id)
+        parsed_id = UUID(memory_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid memory_id")
+    
+    try:
+        memory_manager.delete_memory(parsed_id, user_id)
         return {"message": "Memory deleted"}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Memory not found")
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to delete memory") from exc
